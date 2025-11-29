@@ -1,10 +1,17 @@
 #include "accel_data_streamer_app.h"
-
+#include <unistd.h>
 static AccelDataQueue data_queue;    
+
 
 int main() 
 {
 
+    int port = 24912;
+    int server_fd = 0;
+    int socket_fd = 0;
+
+    TcpConfig tcp_config = {server_fd,socket_fd};
+    tcp_server_init(&tcp_config, port);
     queue_init(&data_queue);
     int init_code = accel_init(HPF_DISABLED);
     if(init_code != 0)
@@ -15,7 +22,7 @@ int main()
     while(1)
     {
         timer_isr();
-        data_processing_task();
+        data_processing_task(tcp_config);
     }
 
     return 0;
@@ -78,7 +85,7 @@ void timer_isr()
 }
 
 
-void data_processing_task()
+void data_processing_task(TcpConfig tcp_config)
 {
     AccelMeasurement new_meas;
     if(queue_dequeue(&data_queue,&new_meas) != 0) 
@@ -89,7 +96,9 @@ void data_processing_task()
     
     uint32_t accel_magnitude = calculate_accel_magnitude(new_meas.a_x_counts, new_meas.a_y_counts, new_meas.a_z_counts);
     printf("Accel Magnitude: %u\n",accel_magnitude);
-
+    uint8_t bytes_to_send[100];
+    memcpy(bytes_to_send,&accel_magnitude,sizeof(accel_magnitude));
+    tcp_send(&tcp_config, bytes_to_send, sizeof(accel_magnitude));
 }
 
 

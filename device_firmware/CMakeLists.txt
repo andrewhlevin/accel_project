@@ -11,4 +11,6 @@ add_executable(AccelStreamerApp
     accel_interface.c
     accel_data_queue.c
     accel_data_queue.h
+    tcp_interface.c
+    tcp_interface.h
 )
