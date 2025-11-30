@@ -89,9 +89,9 @@ int i2c_write_reg(uint8_t addr, uint8_t reg, const uint8_t *buf, size_t len)
 }
 void i2c_mock_step(void)
 {
-    a_x = test_counter + 1;
-    a_y = -1 * test_counter - 2;
-    a_z = test_counter + 3;
+    a_x = 2.19;
+    a_y = 3.72;
+    a_z = 1.21;
 
     test_counter++;
 }

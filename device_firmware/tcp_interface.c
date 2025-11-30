@@ -103,3 +103,46 @@ void tcp_close(TcpConfig* server)
         server->server_fd = -1;
     }
 }
+
+int generate_tcp_msg(uint8_t* payload_buf, uint16_t payload_buf_size, uint8_t* output_buf, uint16_t output_buf_size)
+{
+    TcpHeader header;
+    static int sample_number = 0;
+    header.header_byte_1 = 0x01;
+    header.header_byte_2 = 0x02;
+    header.sample_number = sample_number;
+    sample_number++;
+
+    uint16_t payload_crc = crc16(payload_buf, payload_buf_size);
+
+    if(output_buf_size >= payload_buf_size + sizeof(header) + sizeof(payload_crc))
+    {
+        memcpy(output_buf, &header, sizeof(header));
+        memcpy(output_buf + sizeof(header), payload_buf, payload_buf_size);
+        memcpy(output_buf + sizeof(header) + payload_buf_size, &payload_crc, sizeof(payload_crc));
+
+        return 0;
+    }
+    else 
+    {
+        return -1;
+    }   
+}
+
+uint16_t crc16(const uint8_t *data, uint16_t length)
+{
+    uint16_t crc = 0xFFFF; // Initial value
+    for (uint16_t i = 0; i < length; i++)
+    {
+        crc ^= data[i];
+        for (uint8_t j = 0; j < 8; j++)
+        {
+            if (crc & 0x0001)
+                crc = (crc >> 1) ^ 0xA001;
+            else
+                crc >>= 1;
+        }
+    }
+    return crc;
+}
+

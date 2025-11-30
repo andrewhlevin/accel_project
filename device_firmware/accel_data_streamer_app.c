@@ -68,19 +68,21 @@ void timer_isr()
     {
         i2c_mock_step();
         down_sample_count = 0;
+        AccelMeasurement new_meas;
+        int meas_code = accel_read_measurement(&new_meas);
+        printf("meas code: %d, meas x: %d, meas y: %d,meas z: %d\n", meas_code, new_meas.a_x_counts,new_meas.a_y_counts,new_meas.a_z_counts);
+
+        if(queue_enqueue(&data_queue, new_meas) != 0) 
+        {
+            printf("Enqueue Error, Queue Full!\n");
+        }
     }
     else 
     {
         down_sample_count++;
     }
 
-    AccelMeasurement new_meas;
-    int meas_code = accel_read_measurement(&new_meas);
-    printf("meas code: %d, meas x: %d, meas y: %d,meas z: %d\n", meas_code, new_meas.a_x_counts,new_meas.a_y_counts,new_meas.a_z_counts);
-    if(queue_enqueue(&data_queue, new_meas) != 0) 
-    {
-        printf("Enqueue Error, Queue Full!\n");
-    }
+
     sleep(1);
 }
 
@@ -94,11 +96,48 @@ void data_processing_task(TcpConfig tcp_config)
         return;
     }
     
-    uint32_t accel_magnitude = calculate_accel_magnitude(new_meas.a_x_counts, new_meas.a_y_counts, new_meas.a_z_counts);
-    printf("Accel Magnitude: %u\n",accel_magnitude);
-    uint8_t bytes_to_send[100];
-    memcpy(bytes_to_send,&accel_magnitude,sizeof(accel_magnitude));
-    tcp_send(&tcp_config, bytes_to_send, sizeof(accel_magnitude));
+    uint8_t output_buffer[OUTPUT_MESSAGE_SIZE];
+    AccelDataPayload new_payload = construct_accel_data_payload(new_meas);
+    uint8_t payload_buffer[sizeof(new_payload)];
+    memcpy(payload_buffer,&new_payload,sizeof(new_payload));
+
+    if(generate_tcp_msg(payload_buffer, sizeof(new_payload), output_buffer, OUTPUT_MESSAGE_SIZE) != 0)
+    {
+        printf("Generate Message Error, Buffer not large enough!\n");
+        return;
+    }
+
+    tcp_send(&tcp_config, output_buffer, OUTPUT_MESSAGE_SIZE);
 }
 
 
+AccelDataPayload construct_accel_data_payload(AccelMeasurement meas)
+{
+    AccelDataPayload new_payload;
+    
+    new_payload.timestamp_ms = get_time_in_ms();
+
+    new_payload.a_x_mg = (int16_t) ((float) meas.a_x_counts * MAX_SUPPORTED_Gs / 2048 * 1000);
+    new_payload.a_y_mg = (int16_t) ((float) meas.a_y_counts * MAX_SUPPORTED_Gs / 2048 * 1000);
+    new_payload.a_z_mg = (int16_t) ((float) meas.a_z_counts * MAX_SUPPORTED_Gs / 2048 * 1000);
+
+    new_payload.a_magnitude_counts = calculate_accel_magnitude(meas.a_x_counts, meas.a_y_counts, meas.a_z_counts);
+
+    return new_payload;
+}
+
+uint64_t get_time_in_ms()
+{
+    struct timespec spec;
+    uint64_t milliseconds;
+
+    // Get the current time with nanosecond precision
+    if (clock_gettime(CLOCK_REALTIME, &spec) == -1) {
+        perror("clock_gettime");
+        return 1;
+    }
+
+    // Convert seconds and nanoseconds to milliseconds
+    milliseconds = (uint64_t)spec.tv_sec * 1000 + (uint64_t)spec.tv_nsec / 1000000;
+    return milliseconds;
+}

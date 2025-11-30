@@ -48,3 +48,4 @@ int16_t convert_signed_12_bit_to_int16(uint8_t lsb, uint8_t msb)
 
     return combined_value;
 }
+

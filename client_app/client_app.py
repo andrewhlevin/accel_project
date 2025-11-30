@@ -1,32 +1,33 @@
-import socket
+import threading
+from tcp_interface import *
+from accel_data_processor import *
+from logger import *
 
-SERVER_IP = "127.0.0.1"  # Replace with your server IP if not localhost
-SERVER_PORT = 24912      # Replace with the port your server uses
+# -------------------------------
+# Global shared buffer + lock
+# -------------------------------
+shared_payload = b""
+payload_lock = threading.Lock()
 
-def main():
-    # Create TCP socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        try:
-            sock.connect((SERVER_IP, SERVER_PORT))
-            print(f"Connected to server {SERVER_IP}:{SERVER_PORT}")
-        except Exception as e:
-            print(f"Failed to connect: {e}")
-            return
 
-        while True:
-            try:
-                data = sock.recv(1)  # Receive up to 1024 bytes
-                print(str(data))
-                if not data:
-                    print("Server closed connection.")
-                    break
-                print("Received:", data.decode('utf-8', errors='replace'))
-            except KeyboardInterrupt:
-                print("Client exiting.")
-                break
-            except Exception as e:
-                print(f"Error receiving data: {e}")
-                break
-
+# -------------------------------
+# Main Entry
+# -------------------------------
 if __name__ == "__main__":
-    main()
+    # Start receiver thread
+    t1 = threading.Thread(target=tcp_receiver_thread, daemon=True)
+    t1.start()
+
+    # Start processor thread
+    t2 = threading.Thread(target=processing_thread, daemon=True)
+    t2.start()
+    
+    json_file_path = "accel_data.json"
+    t3 = threading.Thread(args=(json_file_path,),target=logging_thread, daemon=True)
+    t3.start()
+
+    # Keep main thread alive
+    while True:
+        time.sleep(5)
+
+
