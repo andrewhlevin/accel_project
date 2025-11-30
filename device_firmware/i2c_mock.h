@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 #define I2C_ADDR_ACCEL 0x1A
 #define MAX_SUPPORTED_Gs 5
@@ -24,6 +25,15 @@ typedef enum
     OUT_Z_L = 0x14,
     OUT_Z_H = 0x15,
 } ACCEL_REGISTER_MAP;
+
+typedef enum 
+{
+    SUCCESS = 0,
+    INVALID_ADDRESS = -1,
+    INVALID_READ_REQUEST = -2,
+    BUS_ERROR = -3
+} I2C_RET_CODE;
+
 
 typedef enum
 {

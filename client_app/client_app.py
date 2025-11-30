@@ -2,17 +2,10 @@ import threading
 from tcp_interface import *
 from accel_data_processor import *
 from logger import *
+from datetime import datetime
+from shared_queues import plotting_queue
+import matplotlib.pyplot as plt
 
-# -------------------------------
-# Global shared buffer + lock
-# -------------------------------
-shared_payload = b""
-payload_lock = threading.Lock()
-
-
-# -------------------------------
-# Main Entry
-# -------------------------------
 if __name__ == "__main__":
     # Start receiver thread
     t1 = threading.Thread(target=tcp_receiver_thread, daemon=True)
@@ -22,12 +15,61 @@ if __name__ == "__main__":
     t2 = threading.Thread(target=processing_thread, daemon=True)
     t2.start()
     
-    json_file_path = "accel_data.json"
+    now = datetime.now()
+    date_time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
+
+    json_file_path = "../logs/accel_data_" + date_time_string + ".json"
     t3 = threading.Thread(args=(json_file_path,),target=logging_thread, daemon=True)
     t3.start()
 
-    # Keep main thread alive
+    # Enable interactive mode
+    plt.ion()
+    fig, ax = plt.subplots()
+
+    # Lists to store data
+    timestamps = []
+    a_x = []
+    a_y = []
+    a_z = []
+
+    # Create line objects for each axis
+    line_x, = ax.plot([], [], label='a_x')
+    line_y, = ax.plot([], [], label='a_y')
+    line_z, = ax.plot([], [], label='a_z')
+
+    ax.set_xlabel('Timestamp (ms)')
+    ax.set_ylabel('Acceleration (mg)')
+    ax.set_title('Real-Time Accelerometer Data')
+    ax.legend()
+
     while True:
-        time.sleep(5)
+        try:
+            # Get the next accelerometer message from the queue
+            accel_data: Dict = plotting_queue.get()  # Blocks if queue is empty
+            # Update lists with new data
+            timestamps.append(time.time())
+            a_x.append(accel_data["a_x_mg"])
+            a_y.append(accel_data["a_y_mg"])
+            a_z.append(accel_data["a_z_mg"])
+
+            # Update line data
+            line_x.set_data(timestamps, a_x)
+            line_y.set_data(timestamps, a_y)
+            line_z.set_data(timestamps, a_z)
+
+            # Adjust axes limits dynamically
+            ax.relim()
+            ax.autoscale_view()
+
+            # Draw updated figure
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+
+            # Mark the queue item as done
+            plotting_queue.task_done()
+        except Exception as e:
+            print(f"Error in plotting thread: {e}")
+
+            time.sleep(0.1)
 
 

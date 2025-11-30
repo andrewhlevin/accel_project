@@ -1,6 +1,10 @@
+
+
 #ifndef ACCEL_DATA_STREAMER_H
 #define ACCEL_DATA_STREAMER_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "accel_interface.h"
 #include "accel_data_queue.h"
 #include "tcp_interface.h"
@@ -23,5 +27,8 @@ uint64_t get_time_in_ms();
 AccelDataPayload construct_accel_data_payload(AccelMeasurement meas);
 uint32_t calculate_accel_magnitude(int16_t a_x_counts, int16_t a_y_counts, int16_t a_z_counts);
 uint64_t isqrt64(uint64_t n);
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -64,18 +64,29 @@ uint64_t isqrt64(uint64_t n) {
 void timer_isr() 
 {    
     static int down_sample_count = 0;
-    if(down_sample_count == 3)
-    {
-        i2c_mock_step();
-        down_sample_count = 0;
-        AccelMeasurement new_meas;
-        int meas_code = accel_read_measurement(&new_meas);
-        printf("meas code: %d, meas x: %d, meas y: %d,meas z: %d\n", meas_code, new_meas.a_x_counts,new_meas.a_y_counts,new_meas.a_z_counts);
+    static I2C_RET_CODE last_ret_code = SUCCESS;
 
-        if(queue_enqueue(&data_queue, new_meas) != 0) 
+    if(last_ret_code == BUS_ERROR)
+    {
+        // If received a bus error on last read call, use this schedule slot to reinit the bus
+        printf("Reinitializing the bus due to error!\n");
+        last_ret_code = accel_init(HPF_DISABLED);
+        i2c_mock_step();
+    }
+    else if(down_sample_count == 3)
+    {
+        AccelMeasurement new_meas;
+        last_ret_code = accel_read_measurement(&new_meas);
+
+        i2c_mock_step();
+
+        if(last_ret_code == SUCCESS)
         {
-            printf("Enqueue Error, Queue Full!\n");
+            queue_enqueue(&data_queue, new_meas); 
         }
+        
+        down_sample_count = 0;
+
     }
     else 
     {
@@ -83,7 +94,7 @@ void timer_isr()
     }
 
 
-    sleep(1);
+    usleep(10000);
 }
 
 
@@ -92,7 +103,7 @@ void data_processing_task(TcpConfig tcp_config)
     AccelMeasurement new_meas;
     if(queue_dequeue(&data_queue,&new_meas) != 0) 
     {
-        printf("Dequeue Error, Queue Empty!\n");
+        //printf("Dequeue Error, Queue Empty!\n");
         return;
     }
     
@@ -103,7 +114,7 @@ void data_processing_task(TcpConfig tcp_config)
 
     if(generate_tcp_msg(payload_buffer, sizeof(new_payload), output_buffer, OUTPUT_MESSAGE_SIZE) != 0)
     {
-        printf("Generate Message Error, Buffer not large enough!\n");
+        //printf("Generate Message Error, Buffer not large enough!\n");
         return;
     }
 

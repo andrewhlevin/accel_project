@@ -24,6 +24,6 @@ int tcp_receive(TcpConfig* server, uint8_t* buffer, int buffer_size);
 void tcp_close(TcpConfig* server);
 
 int generate_tcp_msg(uint8_t* payload_buf, uint16_t payload_buf_size, uint8_t* output_buf, uint16_t output_buf_size);
-uint16_t crc16(const uint8_t *data, uint16_t length);
+uint16_t crc_16(const uint8_t *data, uint16_t length);
 
 #endif // TCP_INTERFACE_H

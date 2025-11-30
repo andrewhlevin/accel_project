@@ -20,7 +20,7 @@ int accel_init(HPF_STATE hpf_state);
 
 // Read accelerometer measurements
 // Returns 0 on success, non-zero on error
-int accel_read_measurement(AccelMeasurement *meas);
+I2C_RET_CODE accel_read_measurement(AccelMeasurement *meas);
 int16_t convert_signed_12_bit_to_int16(uint8_t msb, uint8_t lsb);
 
 

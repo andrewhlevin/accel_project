@@ -26,18 +26,18 @@ int accel_init(HPF_STATE hpf_state)
     }
 }
 
-int accel_read_measurement(AccelMeasurement *meas) 
+I2C_RET_CODE accel_read_measurement(AccelMeasurement *meas) 
 {
     uint8_t read_buf[6];
-    if(i2c_read_reg(I2C_ADDR_ACCEL, OUT_X_L, read_buf, 6) != 0)
+    I2C_RET_CODE ret_code = i2c_read_reg(I2C_ADDR_ACCEL, OUT_X_L, read_buf, 6);
+    if(ret_code == SUCCESS)
     {
-        return -1;
+        meas->a_x_counts = convert_signed_12_bit_to_int16(read_buf[0],read_buf[1]);
+        meas->a_y_counts = convert_signed_12_bit_to_int16(read_buf[2],read_buf[3]);
+        meas->a_z_counts = convert_signed_12_bit_to_int16(read_buf[4],read_buf[5]);
     }
-
-    meas->a_x_counts = convert_signed_12_bit_to_int16(read_buf[0],read_buf[1]);
-    meas->a_y_counts = convert_signed_12_bit_to_int16(read_buf[2],read_buf[3]);
-    meas->a_z_counts = convert_signed_12_bit_to_int16(read_buf[4],read_buf[5]);
-    return 0;
+    
+    return ret_code;
 }
 
 int16_t convert_signed_12_bit_to_int16(uint8_t lsb, uint8_t msb)

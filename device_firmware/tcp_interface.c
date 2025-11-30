@@ -70,7 +70,7 @@ int tcp_send(TcpConfig* server, const uint8_t* data, int data_len)
     while (total_sent < data_len) {
         int sent = send(server->socket_fd, data + total_sent, data_len - total_sent, 0);
         if (sent < 0) {
-            perror("send");
+            //perror("send");
             return -1;
         }
         total_sent += sent;
@@ -113,13 +113,14 @@ int generate_tcp_msg(uint8_t* payload_buf, uint16_t payload_buf_size, uint8_t* o
     header.sample_number = sample_number;
     sample_number++;
 
-    uint16_t payload_crc = crc16(payload_buf, payload_buf_size);
 
-    if(output_buf_size >= payload_buf_size + sizeof(header) + sizeof(payload_crc))
+    if(output_buf_size >= payload_buf_size + sizeof(header) + sizeof(uint16_t))
     {
         memcpy(output_buf, &header, sizeof(header));
         memcpy(output_buf + sizeof(header), payload_buf, payload_buf_size);
-        memcpy(output_buf + sizeof(header) + payload_buf_size, &payload_crc, sizeof(payload_crc));
+
+        uint16_t crc = crc_16(output_buf, payload_buf_size + sizeof(header));
+        memcpy(output_buf + sizeof(header) + payload_buf_size, &crc, sizeof(crc));
 
         return 0;
     }
@@ -129,7 +130,7 @@ int generate_tcp_msg(uint8_t* payload_buf, uint16_t payload_buf_size, uint8_t* o
     }   
 }
 
-uint16_t crc16(const uint8_t *data, uint16_t length)
+uint16_t crc_16(const uint8_t *data, uint16_t length)
 {
     uint16_t crc = 0xFFFF; // Initial value
     for (uint16_t i = 0; i < length; i++)

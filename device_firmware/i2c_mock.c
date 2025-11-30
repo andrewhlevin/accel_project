@@ -1,5 +1,6 @@
 #include "i2c_mock.h"
-
+#include <math.h>
+#include <stdbool.h>
 // Global Variables for Accel Statefulness
 SAMPLING_STATE sampling_enabled = SAMPLING_DISABLED;
 HPF_STATE hpf_enabled = HPF_DISABLED;
@@ -7,14 +8,20 @@ uint8_t test_counter = 0;
 float a_x = 0;
 float a_y = 0;
 float a_z = 0;
+bool bus_error_active = false;
 
 int i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len)
 {
+    if(bus_error_active)
+    {
+        return BUS_ERROR;
+    }
+    
     int ret_code = -1;
     if(addr != I2C_ADDR_ACCEL)
     {
         printf("Invalid read address!\n");
-        ret_code = -1;
+        ret_code = INVALID_ADDRESS;
     }
     else 
     {
@@ -26,7 +33,7 @@ int i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len)
             {
                 buf[0] = 0x00 | sampling_enabled | (hpf_enabled << 1);
                 
-                ret_code = 0;
+                ret_code = SUCCESS;
                 break;
             }
             case(WHO_AM_I):
@@ -44,12 +51,12 @@ int i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len)
                 convert_float_to_signed_12_bit(a_z,&new_meas.OUT_Z_H,&new_meas.OUT_Z_L);
                 
                 memcpy(buf,&new_meas,len);
-                ret_code = 0;
+                ret_code = SUCCESS;
                 break;
             }
             default:
                 printf("Invalid Read Request!\n");
-                ret_code = -2;
+                ret_code = INVALID_READ_REQUEST;
         }
     }
     return ret_code;
@@ -89,10 +96,17 @@ int i2c_write_reg(uint8_t addr, uint8_t reg, const uint8_t *buf, size_t len)
 }
 void i2c_mock_step(void)
 {
-    a_x = 2.19;
-    a_y = 3.72;
-    a_z = 1.21;
-
+    a_x = sin((double) test_counter/100);
+    a_y = 0.5 * sin((double) -test_counter/100);
+    a_z = 2* sin((double) test_counter/50);
+    if(test_counter == 13)
+    {
+        bus_error_active = true;
+    }
+    else
+    {
+        bus_error_active = false;
+    }
     test_counter++;
 }
 

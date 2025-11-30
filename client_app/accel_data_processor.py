@@ -13,12 +13,19 @@ def processing_thread():
             if(len(packet) >= 26):
                 accel_data_msg = unpack_accel_data_message(packet)
                 if(logging_queue.full()):
-                    print("Logging queue full!\n")
+                    print("full \n")
+                    continue
                 else:
-                    logging_queue.put(accel_data_msg)
-                    #plotting_queue.put_nowait(accel_data_msg)
+                    print("size: " + str(logging_queue.qsize()) + "\n")
+
+                    logging_queue.put_nowait(accel_data_msg)
+                try:
+                    plotting_queue.put_nowait(accel_data_msg)
+                except:
+                    #waiting to plot, this is ok as no requirements on lossless plotting, continue
+                    continue
         
-        time.sleep(0.1)  # 10 Hz processing loop
+        time.sleep(0.01)
 
 
 
@@ -46,3 +53,5 @@ def unpack_accel_data_message(data: bytes) -> Dict:
         "a_magnitude_counts": parsed_data[7],
         "crc": parsed_data[8]
     }
+
+
