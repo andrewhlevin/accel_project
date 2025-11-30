@@ -144,3 +144,63 @@ TEST(AccelQueue, CheckForEmpty) {
     EXPECT_EQ(queue_dequeue(&queue, &out), -1);
     EXPECT_TRUE(queue_is_empty(&queue));
 }
+
+TEST(TcpInterface, NominalGeneration) {
+    uint8_t payload[4] = {0x01, 0x03, 0x05, 0x07};
+    uint8_t output[100] = {0};
+    int ret = generate_tcp_msg(payload, sizeof(payload), output, sizeof(output));
+
+    EXPECT_EQ(ret, 0);
+
+    // Check header bytes
+    EXPECT_EQ(output[0], 0x01);
+    EXPECT_EQ(output[1], 0x02);
+
+    // Check sample number (first call = 0)
+    uint32_t sample_number;
+    memcpy(&sample_number, output + 2, sizeof(uint32_t));
+    EXPECT_EQ(sample_number, 0);
+
+    // Check payload copied correctly
+    EXPECT_EQ(output[6], 0x01);
+    EXPECT_EQ(output[7], 0x03);
+    EXPECT_EQ(output[8], 0x05);
+    EXPECT_EQ(output[9], 0x07);
+
+    // Check CRC
+    uint16_t expected_crc = crc_16(output, 6 + 4); // header + payload
+    uint16_t msg_crc;
+    memcpy(&msg_crc, output + 6 + 4, sizeof(uint16_t));
+    EXPECT_EQ(msg_crc, expected_crc);
+}
+
+TEST(TcpInterface, CheckIfBufferNotBigEnough) {
+    uint8_t input[6] = {0};
+    uint8_t output[5] = {0}; // deliberately too small
+    int ret = generate_tcp_msg(input, sizeof(input), output, sizeof(output));
+    EXPECT_EQ(ret, -1);
+}
+
+TEST(TcpInterface, SampleNumberIncrements) {
+    uint8_t payload[1] = {0};
+    uint8_t output[20] = {0};
+
+    // First call
+    generate_tcp_msg(payload, sizeof(payload), output, sizeof(output));
+    uint32_t sample1;
+    memcpy(&sample1, output + 2, sizeof(uint32_t));
+
+    // Second call
+    generate_tcp_msg(payload, sizeof(payload), output, sizeof(output));
+    uint32_t sample2;
+    memcpy(&sample2, output + 2, sizeof(uint32_t));
+
+    EXPECT_EQ(sample2, sample1 + 1);
+}
+
+TEST(Crc16, TestCase) {
+    uint8_t data[5] = {1, 2, 3, 4, 5};
+    uint16_t crc = crc_16(data, 5);
+
+    EXPECT_EQ(crc, 0xBB2A); // Looked up the value using online calculator
+}
