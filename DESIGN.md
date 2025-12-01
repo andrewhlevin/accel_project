@@ -1,10 +1,10 @@
-Firmware Design
+# Firmware Design
 
-High Level:
+## High Level:
 - Goal was to build a low latency, low memory overhead, data pipeline from mock accel interface input to TCP socket output
 - Written in C (as required by the prompt)
 
-Mock I2C Device:
+## Mock I2C Device:
 - Based on given API, built a mock i2c accel device that would properly respond to driver API requests from the MCU firmware
 - Emulates register reads and writes that are required by the accelerometer interface as written 
     (does not cover all cases like reading individual accel registers)
@@ -14,7 +14,7 @@ Mock I2C Device:
 - The Data uses all 12 bits (sensor count range -2047 to 2048) to represent a physical range of -5 to 5 g, yielding a count sensitivity of 2.44 mg/count
 - Implemented the stretch goal of a simulated i2c bus fault, that occurs whenever the incrementing step counter hits the unlucky number 13
 
-Accelerometer Interface/Driver:
+## Accelerometer Interface/Driver:
 - Wraps Mock I2C API to allow for 2 operations: Initialize and Read All Accel Registers (only time accel should be written to is upon initialization to enable control and HPF bits)
 - Initialization performs write operations to configure HPF (not implemented yet) and enable sampling, checks for SUCCESS ret codes from the Mock I2C device
 - In the future, I would have added the mechanism for the client to stop and start the accel streaming on demand
@@ -22,13 +22,13 @@ Accelerometer Interface/Driver:
 - The read function then combines and returns sensor counts as int16s in the AccelMeasurement data struct (reverses the 16 to 12 bit conversion done by the mock i2c device)
 - Reading also returns a RET CODE that can be used by the application to appropriately handle errors
 
-Data Queue:
+## Data Queue:
 - Developed a super simple queue library without rollover
 - Can enqueue, dequeue, and check if queue is full/empty
 - In the future, I would enable circular behavior with rollover to allow for higher throughput, lossy data
 - Given relative rates/bandwidth of processes, queue does not need to be large to ensure lossless transmission 
 
-TCP Interface:
+## TCP Interface:
 - Versatile, general application library for TCP socket initialization, sending, and receiving
 - Entirely decoupled from the accel data we are using it for in this application (I wanted this library to be as light-weight, and reusable as possible)
 - In addition to init, send, and receive methods, I added a basic payload wrapper with header bytes, sample count, and a crc to ensure data integrity and synchronization (probably overkill but would be necessary for protocols with less built-in integrity checks like RS422)
@@ -36,7 +36,7 @@ TCP Interface:
 - Does not handle dropped client connection, but would add multi-client support and connection retry in the future
 - Assuming little-endian transmission of data from server to client
 
-Main Application:
+## Main Application:
 - Performs initialization of the system, then starts a bare-metal-esque super loop with 2 threads
 - Thread 1: ISR thread that simulates a hardware timer interrupt (using sleeps) and reads new accel data
 - Thread 2: Processing Thread that processes, packages, and sends new accel data to the client
@@ -47,35 +47,35 @@ Main Application:
 - The reason we don't both reinitialize and read in the same cycle is that we want to ensure as much schedule determinism as possible and i2c driver calls likely take the most time of any operation in this application. This way we gurantee 1 driver call per cycle
 - Data timestamping happens as soon as processing thread receives a new sample (low latency without spending too much time in the ISR, keep the ISR as single responsinility as possible)
 
-Client Application Design:
+# Client Application Design:
 
-High Level:
+## High Level:
 - Written in Python (This is the language I have the most experience in outside of C and C++)
 - Easier than other languages to spin up an app like this due to vast package support including matplotlib
 - Lower performance than other languages so would likely want to use something else if data throughput requirements are high enough
 - Application has 4 threads: TCP Interface, Data Parsing/Processing, Logging and Main (plotting)
 - Plotting is in main due to matplotlib bandwidth needs
 
-TCP Interface:
+## TCP Interface:
 - Receives and verifies (checks header and CRC) accel data from server
 - Handles server (firmware) restarts, and performs connection retries
 - Passes data via queue to other threads for payload data processing
 
-Accel Data Processor:
+## Accel Data Processor:
 - Dequeues and Parses (unpacks) Raw Bytes from TCP Interface into accel data dictionary
 - Passes Parsed Data to Logging and Plotting Queues
 
-Logger:
+## Logger:
 - Creates and writes to JSON log file in configured location
 - JSON chosen because its easily readable for development 
 - Would likely use binary format instead for compactness and write speeds if data bandwidth requirements are high enough
 
-Plotter (main):
+## Plotter (main):
 - Using matplotlib because of its versatility and (based on my experience) decent reliability compared to other packages like tkinter
 - Currently plots all accelerations on 1 plot (would break this up into multiple per axis in the future)
 - Uses local timestamp instead of device timestamp for plotting in order to support firmware/mcu_clock restart
 
-What I would do next with more time
+# What I would do next with more time
 - In addition to the ways I would improve this above, here is what I would do with more time:
 - Enable High Pass filtering with configurable cutoff frequency
 - Add ability to start and stop accel sampling while firmware is streaming, controllable through the client application via cmd line
@@ -83,10 +83,11 @@ What I would do next with more time
 - Build in/incorporate RTOS-like schedule enforcement (If a blocking i2c read call does not return in X ms, yield the kernel and allow another task to takeover) 
 - Add a watchdog/exception handling to handle task overruns or system hard faults
 
-AI (ChatGPT) Uses:
+# AI (ChatGPT) Uses:
 - Plot initialization and data update template (Python): Reformatted it for main loop, modified timestamp source
 - Accel Data Unpack function (Python): Made small tweaks to names and 
 - Modbus CRC 16 function (C and Python): Used pretty much as generated
 - Integer Sqrt function (C): Used pretty much as generated
 - TCP Utility Code (C): Based on manually generated header, made small modifications to intilization and send functions
+- Attached file with screenshots of prompts and generated code
 
