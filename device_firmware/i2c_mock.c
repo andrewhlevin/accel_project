@@ -39,7 +39,6 @@ int i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len)
             case(WHO_AM_I):
             {
                 buf[0] = WHO_AM_I_VALUE;
-                printf("who am I?\n");
                 ret_code = 0;
                 break;
             }
@@ -84,7 +83,7 @@ int i2c_write_reg(uint8_t addr, uint8_t reg, const uint8_t *buf, size_t len)
                 sampling_enabled = buf[0] & 0x01;
                 hpf_enabled = (buf[0] & 0x02) >> 1;
                 ret_code = 0; 
-                printf("Sampling enabled: %d, hpf enabled %d \n", sampling_enabled, hpf_enabled);
+                //printf("Sampling enabled: %d, hpf enabled %d \n", sampling_enabled, hpf_enabled);
                 break; 
             }
             default:
