@@ -15,7 +15,7 @@ include(GoogleTest)
 project(AccelStreamerApp C CXX)
 add_compile_options(-Wall -Wextra -Wpedantic)
 add_executable(AccelStreamerApp
-    accel_data_streamer_app.c
+    main.c
     i2c_mock.c
     accel_interface.c
     accel_data_queue.c

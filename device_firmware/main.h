@@ -1,7 +1,7 @@
 
 
-#ifndef ACCEL_DATA_STREAMER_H
-#define ACCEL_DATA_STREAMER_H
+#ifndef MAIN_H
+#define MAIN_H
 #ifdef __cplusplus
 extern "C" {
 #endif

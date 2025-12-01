@@ -63,15 +63,17 @@ int tcp_server_init(TcpConfig* server, uint16_t port)
 
 int tcp_send(TcpConfig* server, const uint8_t* data, int data_len)
 {
+    // Check for bad config, file descriptor, or null buffer
     if (!server || server->socket_fd < 0 || !data || data_len <= 0)
         return -1;
 
+    // Send Data until all data is sent
     int total_sent = 0;
     while (total_sent < data_len) {
         int sent = send(server->socket_fd, data + total_sent, data_len - total_sent, 0);
         if (sent < 0) {
-            //perror("send");
-            return -1;
+            perror("send");
+            return -2;
         }
         total_sent += sent;
     }
@@ -80,16 +82,20 @@ int tcp_send(TcpConfig* server, const uint8_t* data, int data_len)
 
 int tcp_receive(TcpConfig* server, uint8_t* buffer, int buffer_size)
 {
+    // Check for bad config, file descriptor, or null buffer
     if (!server || server->socket_fd < 0 || !buffer || buffer_size <= 0)
         return -1;
 
+    // Attempt to receive data up to buffer size
     int received = recv(server->socket_fd, buffer, buffer_size, 0);
     if (received < 0) {
         perror("recv");
+        return -2;
     }
     return received;
 }
 
+// Close Socket FDs
 void tcp_close(TcpConfig* server)
 {
     if (!server) return;
@@ -104,6 +110,7 @@ void tcp_close(TcpConfig* server)
     }
 }
 
+// Function to generate full byte stream for TCP Message including header and CRC for data integrity
 int generate_tcp_msg(uint8_t* payload_buf, uint16_t payload_buf_size, uint8_t* output_buf, uint16_t output_buf_size)
 {
     TcpHeader header;
@@ -130,6 +137,7 @@ int generate_tcp_msg(uint8_t* payload_buf, uint16_t payload_buf_size, uint8_t* o
     }   
 }
 
+// Modbus CRC function
 uint16_t crc_16(const uint8_t *data, uint16_t length)
 {
     uint16_t crc = 0xFFFF; // Initial value

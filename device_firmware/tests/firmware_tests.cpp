@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../accel_data_streamer_app.h"   
+#include "../main.h"   
 
 extern bool bus_error_active;
 extern uint8_t sampling_enabled;
@@ -9,8 +9,9 @@ extern float a_x;
 extern float a_y;
 extern float a_z;
 
-TEST(I2CReadRegTest, ReturnsBusErrorWhenActive)
+TEST(I2CReadTest, ReturnsBusErrorWhenActive)
 {
+    // Inject bus error active, check for returned BUS ERROR
     uint8_t buf[4] = {0};
     bus_error_active = true;
 
@@ -20,8 +21,9 @@ TEST(I2CReadRegTest, ReturnsBusErrorWhenActive)
     bus_error_active = false;
 }
 
-TEST(I2CReadRegTest, InvalidAddressReturnsError)
+TEST(I2CReadTest, InvalidAddressReturnsError)
 {
+    // Intentionally request invalid device address, check expected response
     uint8_t buf[1] = {0};
 
     int ret = i2c_read_reg(0xFF, WHO_AM_I, buf, 1);
@@ -29,8 +31,9 @@ TEST(I2CReadRegTest, InvalidAddressReturnsError)
     EXPECT_EQ(ret, INVALID_ADDRESS);
 }
 
-TEST(I2CReadRegTest, WhoAmIRegisterReturnsCorrectValue)
+TEST(I2CReadTest, WhoAmIRegisterReturnsCorrectValue)
 {
+    // Read and check who am I value
     uint8_t buf[1] = {0};
 
     int ret = i2c_read_reg(I2C_ADDR_ACCEL, WHO_AM_I, buf, 1);
@@ -39,8 +42,9 @@ TEST(I2CReadRegTest, WhoAmIRegisterReturnsCorrectValue)
     EXPECT_EQ(buf[0], WHO_AM_I_VALUE);
 }
 
-TEST(I2CReadRegTest, CtrlRegisterReturnsCorrectBits)
+TEST(I2CReadTest, CtrlRegisterReturnsCorrectBits)
 {
+    // Read and check control reg bits
     uint8_t buf[1] = {0};
 
     sampling_enabled = 1;
@@ -52,8 +56,9 @@ TEST(I2CReadRegTest, CtrlRegisterReturnsCorrectBits)
     EXPECT_EQ(buf[0], (uint8_t)(sampling_enabled | (hpf_enabled << 1)));
 }
 
-TEST(I2CReadRegTest, OutXLReturnsConvertedMeasurementData)
+TEST(I2CReadTest, OutXLReturnsConvertedMeasurementData)
 {
+    // Read and validate dummy accel data
     uint8_t buf[6] = {0};
 
     a_x = 1.9f;
@@ -73,8 +78,9 @@ TEST(I2CReadRegTest, OutXLReturnsConvertedMeasurementData)
     EXPECT_EQ(memcmp(buf, &expected_meas, sizeof(expected_meas)), 0);
 }
 
-TEST(I2CReadRegTest, InvalidRegisterReturnsError)
+TEST(I2CReadTest, InvalidRegisterReturnsError)
 {
+    // Use incorrect register address, expect invalid read returned
     uint8_t buf[1] = {0};
 
     int ret = i2c_read_reg(I2C_ADDR_ACCEL, 0xFF, buf, 1);
@@ -96,8 +102,8 @@ TEST(ConvertSigned12Bit, MaxNegativeValue) {
     EXPECT_EQ(convert_signed_12_bit_to_int16(lsb, msb), -2048);
 }
 
-TEST(AccelQueue, SimpleEnqueueDequeue) {
-    
+TEST(AccelQueue, EnqueueDequeue) {
+    // Enqueue and dequeue 1
     AccelDataQueue queue;
     queue_init(&queue);
 
@@ -114,6 +120,7 @@ TEST(AccelQueue, SimpleEnqueueDequeue) {
 }
 
 TEST(AccelQueue, CheckForFull) {
+    // Add up to size of queue
     AccelDataQueue queue;
     queue_init(&queue);
 
@@ -127,6 +134,7 @@ TEST(AccelQueue, CheckForFull) {
 }
 
 TEST(AccelQueue, CheckForEmpty) {
+    // Enqueue and dequeue 5 each
     AccelDataQueue queue;
     queue_init(&queue);
 
@@ -140,7 +148,7 @@ TEST(AccelQueue, CheckForEmpty) {
         EXPECT_EQ(queue_dequeue(&queue, &out), 0);
     }
 
-    // Queue should now be empty
+    // Queue should be empty
     EXPECT_EQ(queue_dequeue(&queue, &out), -1);
     EXPECT_TRUE(queue_is_empty(&queue));
 }
@@ -168,7 +176,7 @@ TEST(TcpInterface, NominalGeneration) {
     EXPECT_EQ(output[9], 0x07);
 
     // Check CRC
-    uint16_t expected_crc = crc_16(output, 6 + 4); // header + payload
+    uint16_t expected_crc = crc_16(output, 6 + 4); 
     uint16_t msg_crc;
     memcpy(&msg_crc, output + 6 + 4, sizeof(uint16_t));
     EXPECT_EQ(msg_crc, expected_crc);
@@ -176,7 +184,8 @@ TEST(TcpInterface, NominalGeneration) {
 
 TEST(TcpInterface, CheckIfBufferNotBigEnough) {
     uint8_t input[6] = {0};
-    uint8_t output[5] = {0}; // deliberately too small
+    // Smaller by 1
+    uint8_t output[5] = {0};
     int ret = generate_tcp_msg(input, sizeof(input), output, sizeof(output));
     EXPECT_EQ(ret, -1);
 }
@@ -201,6 +210,7 @@ TEST(TcpInterface, SampleNumberIncrements) {
 TEST(Crc16, TestCase) {
     uint8_t data[5] = {1, 2, 3, 4, 5};
     uint16_t crc = crc_16(data, 5);
-
-    EXPECT_EQ(crc, 0xBB2A); // Looked up the value using online calculator
+    
+    // Looked up the value using online calculator: https://crccalc.com/
+    EXPECT_EQ(crc, 0xBB2A); 
 }

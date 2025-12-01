@@ -1,24 +1,29 @@
-#include "accel_data_streamer_app.h"
+#include "main.h"
 #include <unistd.h>
 static AccelDataQueue data_queue;    
 
 
 int main() 
 {
-
+    // Initialize TCP Socket
     int port = 24912;
     int server_fd = 0;
     int socket_fd = 0;
 
     TcpConfig tcp_config = {server_fd,socket_fd};
     tcp_server_init(&tcp_config, port);
+
+    // Initialize Shared Data Queue
     queue_init(&data_queue);
+
+    // Initialize Accel Interface
     int init_code = accel_init(HPF_DISABLED);
     if(init_code != 0)
     {
         printf("Accel Initialization Error! Error Code: %d, Stopping Program\n",init_code);
     }
 
+    // Start superloop
     while(1)
     {
         timer_isr();
@@ -28,7 +33,7 @@ int main()
     return 0;
 }
 
-
+// Function to calculate accel magnitude in signed counts from 3 accel vectors
 uint32_t calculate_accel_magnitude(int16_t a_x_counts, int16_t a_y_counts, int16_t a_z_counts)
 {
     uint32_t a_x_counts_squared = (uint32_t) a_x_counts * a_x_counts;
@@ -66,13 +71,15 @@ void timer_isr()
     static int down_sample_count = 0;
     static I2C_RET_CODE last_ret_code = SUCCESS;
 
+    // If last read attempt was a bus error, attempt to re-initialize the interface, skip read call
     if(last_ret_code == BUS_ERROR)
     {
-        // If received a bus error on last read call, use this schedule slot to reinit the bus
         printf("Reinitializing the bus due to error!\n");
         last_ret_code = accel_init(HPF_DISABLED);
         i2c_mock_step();
     }
+
+    // If no error, and weve waited appropriate amount of time since last sample, attempt to read
     else if(down_sample_count == 3)
     {
         AccelMeasurement new_meas;
@@ -100,6 +107,7 @@ void timer_isr()
 
 void data_processing_task(TcpConfig tcp_config)
 {
+    // Get new measurement from ISR queue if available, otherwise return
     AccelMeasurement new_meas;
     if(queue_dequeue(&data_queue,&new_meas) != 0) 
     {
@@ -107,17 +115,20 @@ void data_processing_task(TcpConfig tcp_config)
         return;
     }
     
+    // If data is available, put it into a uint8 payload buffer
     uint8_t output_buffer[OUTPUT_MESSAGE_SIZE];
     AccelDataPayload new_payload = construct_accel_data_payload(new_meas);
     uint8_t payload_buffer[sizeof(new_payload)];
     memcpy(payload_buffer,&new_payload,sizeof(new_payload));
 
+    // Append Header and CRC to payload
     if(generate_tcp_msg(payload_buffer, sizeof(new_payload), output_buffer, OUTPUT_MESSAGE_SIZE) != 0)
     {
         //printf("Generate Message Error, Buffer not large enough!\n");
         return;
     }
-
+    
+    // Send Data
     tcp_send(&tcp_config, output_buffer, OUTPUT_MESSAGE_SIZE);
 }
 

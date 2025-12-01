@@ -1,24 +1,27 @@
 import threading
+import matplotlib.pyplot as plt
+from datetime import datetime
+
 from tcp_interface import *
 from accel_data_processor import *
 from logger import *
-from datetime import datetime
 from shared_queues import plotting_queue
-import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    # Start receiver thread
+    # Start TCP receiver thread
     t1 = threading.Thread(target=tcp_receiver_thread, daemon=True)
     t1.start()
 
-    # Start processor thread
+    # Start Data Processor thread
     t2 = threading.Thread(target=processing_thread, daemon=True)
     t2.start()
-    
+
+    # Get Data Time String for log file name
     now = datetime.now()
     date_time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
 
-    json_file_path = "../logs/accel_data_" + date_time_string + ".json"
+    # Creat log file path and start logger thread
+    json_file_path = "logs/accel_data_" + date_time_string + ".json"
     t3 = threading.Thread(args=(json_file_path,),target=logging_thread, daemon=True)
     t3.start()
 

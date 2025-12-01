@@ -6,24 +6,23 @@ from typing import Dict
 def processing_thread():
 
     while True:
-
+        # Check if tcp queue has a new packet of bytes to parse
         if(not tcp_byte_queue.empty()):
             packet = tcp_byte_queue.get()
-
+            # If there are enough bytes in the packet, attempt to parse
             if(len(packet) >= 26):
                 accel_data_msg = unpack_accel_data_message(packet)
+                # If logging queue and plotting queues are full, make it known, otherwise put new data on both queues
                 if(logging_queue.full()):
-                    print("full \n")
+                    #print("Logging Queue is Full!\n")
                     continue
                 else:
-                    print("size: " + str(logging_queue.qsize()) + "\n")
-
-                    logging_queue.put_nowait(accel_data_msg)
-                try:
-                    plotting_queue.put_nowait(accel_data_msg)
-                except:
-                    #waiting to plot, this is ok as no requirements on lossless plotting, continue
+                    logging_queue.put(accel_data_msg)
+                if(plotting_queue.full()):
+                    #print("Plotting Queue is Full!\n")
                     continue
+                else:
+                    plotting_queue.put(accel_data_msg)
         
         time.sleep(0.01)
 
